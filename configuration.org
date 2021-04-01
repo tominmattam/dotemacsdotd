@@ -6,7 +6,6 @@
 
 * Packages
 
-
 ** Configure =use-package=
 
   =use-package= to install and configure  packages.
@@ -40,6 +39,7 @@ warnings.
   (setq byte-compile-warnings '(cl-functions))
 #+end_src
 
+
 * Use =sensible-defaults.el=
 
 Use [[https://github.com/hrs/sensible-defaults.el][sensible-defaults.el]] for some basic settings.
@@ -52,9 +52,7 @@ Use [[https://github.com/hrs/sensible-defaults.el][sensible-defaults.el]] for so
 #+end_src
 
 
-
 * UI
-
 
 ** Pretty Bullets
 
@@ -67,7 +65,7 @@ Use [[https://github.com/hrs/sensible-defaults.el][sensible-defaults.el]] for so
 ** Fancy Downword Arrow
 
 #+begin_src emacs-lisp
-  (setq org-ellipsis "⤵")
+  (setq org-ellipsis "...")
 #+end_src
 
 ** Hide Unnecessary Stuff
@@ -98,7 +96,6 @@ Hide Frame Title
 #+begin_src emacs-lisp
   (setq frame-title-format '((:eval (projectile-project-name))))
 #+end_src
-
 
 
 **  Syntax highlighting in source blocks for  editing

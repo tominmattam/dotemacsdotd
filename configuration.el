@@ -19,8 +19,56 @@
   :init
   (add-hook 'org-mode-hook 'org-bullets-mode))
 
-(global-hl-line-mode)
+(setq org-ellipsis "...")
 
-(use-package org-bullets
-  :init
-  (add-hook 'org-mode-hook 'org-bullets-mode))
+(setq org-hide-emphasis-markers t)
+
+(tool-bar-mode 0)
+(menu-bar-mode 0)
+(scroll-bar-mode -1)
+
+(set-window-scroll-bars (minibuffer-window) nil nil)
+
+(setq frame-title-format '((:eval (projectile-project-name))))
+
+(setq org-src-fontify-natively t)
+
+(setq org-src-tab-acts-natively t)
+
+(setq org-src-window-setup 'current-window)
+
+(add-to-list 'org-structure-template-alist
+             '("el" . "src emacs-lisp"))
+
+(setq org-adapt-indentation nil)
+
+(global-prettify-symbols-mode t)
+
+(use-package modus-operandi-theme)
+
+(defun transparency (value)
+  "Sets the transparency of the frame window. 0=transparent/100=opaque."
+  (interactive "nTransparency Value 0 - 100 opaque:")
+  (set-frame-parameter (selected-frame) 'alpha value))
+
+(defun hrs/apply-theme ()
+  "Apply my chosen theme and make frames just slightly transparent."
+  (interactive)
+  (load-theme 'modus-operandi t)
+  (transparency 90))
+
+(if (daemonp)
+    (add-hook 'after-make-frame-functions
+              (lambda (frame)
+                (with-selected-frame frame (hrs/apply-theme))))
+  (hrs/apply-theme))
+
+(use-package minions
+  :config
+  (setq minions-mode-line-lighter ""
+        minions-mode-line-delimiters '("" . ""))
+  (minions-mode 1))
+
+(setq ring-bell-function 'ignore)
+
+(setq scroll-conservatively 100)
