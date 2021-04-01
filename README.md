@@ -1,3 +1,3 @@
 # dot-emacs-dot-d
 
-My Emacs Conifgurtion File.
+My Emacs Configuration File.
