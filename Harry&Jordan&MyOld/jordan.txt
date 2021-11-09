@@ -1,0 +1,409 @@
+;;; init.el
+; -*- lexical-binding: t; -*-
+;(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3") ;due to bug in emacs < 26.2
+
+(setq default-directory "~/")
+
+;;; code:
+(setq gc-cons-threshold 100000000)
+(add-hook 'after-init-hook (lambda () (setq gc-cons-threshold 800000)))
+
+;; load new source always
+(setq load-prefer-newer t)
+
+;;---------------
+;; setup packages
+;;---------------
+
+(setq package-enable-at-startup nil
+      package--init-file-ensured t)
+
+(require 'package)
+
+(setq package-archives
+      '(("GNU ELPA"     . "https://elpa.gnu.org/packages/")
+        ("MELPA Stable" . "https://stable.melpa.org/packages/")
+        ("MELPA"        . "https://melpa.org/packages/"))
+      package-archive-priorities
+      '(("MELPA Stable" . 10)
+        ("GNU ELPA"     . 5)
+        ("MELPA"        . 0)))
+
+(package-initialize)
+
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(require 'use-package)
+(setq use-package-compute-statistics t)
+
+(require 'use-package-ensure)
+(setq use-package-always-ensure t)
+
+;;--------------
+;; load packages
+;;--------------
+
+(use-package benchmark-init
+  :config
+  ;; To disable collection of benchmark data after init is done.
+  (add-hook 'after-init-hook 'benchmark-init/deactivate))
+
+;;pkg:EVIL
+(use-package evil
+  :demand t
+  :init (setq evil-want-integration t
+							evil-want-keybinding nil)
+  :config
+  (evil-mode t))
+
+(use-package evil-collection
+  :after evil
+  :init
+  (defvar evil-collection-company-use-tng t)
+  (setq
+   evil-collection-mode-list (list 'mu4e 'doc-view 'dired 'notmuch '(pdf pdf-view) 'magit '(term ansi-term multi-term))
+   evil-collection-key-blacklist '("SPC"))
+  :config (evil-collection-init))
+
+(use-package evil-anzu
+  :after evil
+	:diminish anzu-mode
+  :config (global-anzu-mode))
+
+(use-package general
+	:diminish t
+  :config
+  (general-def 'visual
+    "Q" (kbd ":norm @q RET")
+    "." (kbd ":norm . RET"))
+  (general-create-definer spc-menu
+    :states '(normal visual insert emacs)
+    :prefix "SPC"
+    :non-normal-prefix "M-SPC"
+    :keymaps '(global dired-mode-map mu4e-headers-mode-map mu4e-compose-mode-map mu4e-main-mode-map override))
+  
+  (spc-menu
+    "b" '(:ignore t :wk "buffer prefix")
+    "bh" 'previous-buffer
+    "bl" 'next-buffer
+    "bn" 'switch-to-buffer
+    "bd" 'kill-this-buffer
+    
+    "f" '(:ignore t :wk "file prefix")
+    "fc" (lambda () (interactive) (flyspell-goto-next-error) (flyspell-correct-word-before-point))
+    "fn" 'flyspell-correct-next
+    "fp" 'flyspell-correct-previous
+    
+    "C-g" '(:ignore t :wk "cancel")))
+
+;;pkg:COMPLETIONS
+(use-package ivy
+  :after (general)
+	:diminish ivy-mode
+  :config
+  (ivy-mode 1)
+  (general-define-key :keymaps '(ivy-minibuffer-map override)
+		                  "C-j" 'ivy-next-line
+		                  "C-k" 'ivy-previous-line
+		                  "M-j" 'ivy-next-history-element
+		                  "M-k" 'ivy-previous-history-element))
+
+(use-package counsel
+  :after ivy
+  :diminish counsel-mode
+  :config
+  (counsel-mode)
+	(general-def '(normal insert emacs visual)
+		"C-s" 'counsel-grep-or-swiper
+		"C-S-s" 'counsel-grep-or-swiper-backward)
+  (spc-menu
+    "c" '(:ignore t :wk "counsel prefix")
+    "cl" 'counsel-locate
+    "cr" 'counsel-rg))
+
+(use-package counsel-projectile :defer t)
+
+(use-package which-key
+  :diminish which-key-mode
+  :config
+  (setq which-key-idle-delay 0.5)
+  (which-key-mode t))
+
+;;pkg:OMNI
+(use-package company
+  :hook (after-init . global-company-mode)
+  :init
+  (defvar company-dabbrev-downcase 0)
+  (defvar company-idle-delay 0)
+  (defvar company-minimum-prefix-length 2)
+  
+	(general-def 'company-active-map
+                                        ;"SPC" 'company-abort
+		"C-j" 'company-select-next
+		"C-k" 'company-select-previous)
+	
+  :config
+  (company-tng-configure-default))
+
+(general-define-key
+ :states '(normal visual insert emacs)
+ :prefix "SPC"
+ :non-normal-prefix "C-SPC"
+ :keymaps 'org-mode-map
+ "o" '(:ignore t :wk "org")
+ "RET" 'org-meta-return
+ "ot" '(:ignore t :wk "tables")
+ "otc" '(org-table-create :wk "create table"))
+
+(use-package lsp-mode
+ 	:init
+  (add-hook 'c++-mode-hook #'lsp)
+  (add-hook 'c-mode-hook #'lsp)
+  (add-hook 'objc-mode-hook #'lsp))
+(use-package lsp-ui :after lsp-mode)
+(use-package company-lsp
+ 	:after company
+ 	:init
+ 	(push 'company-lsp company-backends))
+
+;;pk:SYNTAX
+(use-package flycheck
+  :init
+  (global-flycheck-mode))
+;;(use-package flycheck
+;;  :defer t
+;;	:hook
+;;    (python-mode . flycheck-mode)
+;;	(c-mode . flycheck-mode))
+
+(use-package flycheck-irony
+ 	:defer t
+  :after '(irony flycheck)
+  :init
+  (add-hook 'flycheck-mode-hook #'flycheck-irony-setup))
+
+(use-package irony
+ 	:defer t
+  :init
+  (add-hook 'c++-mode-hook 'irony-mode)
+  (add-hook 'c-mode-hook 'irony-mode)
+  (add-hook 'objc-mode-hook 'irony-mode))
+
+(use-package company-irony
+  :defer t
+  :after company
+  :init (add-to-list 'company-backends 'company-irony))
+
+(use-package clang-format)
+
+;;pkg:VCS
+(use-package evil-magit :defer t)
+
+(use-package magit :defer t :config (evil-magit-init))
+
+(use-package projectile
+                                        ;:defer t
+  :init
+	(general-def 'normal
+		"C-p" 'counsel-projectile-find-file
+		"C-S-p" 'counsel-projectile-ag)
+  (spc-menu
+    "p" '(:ignore t :wk "projectile")
+    "pf" 'counsel-projectile-find-file
+    "ps" 'counsel-projectile-switch-project)
+	(projectile-mode))
+
+;;pkg:FILES
+;;(load "~/.emacs.d/custom/treemacs-config.el")
+;;(use-package ranger :defer t)
+
+                                        ;pkg:GUI/KEYS
+(use-package doom-modeline
+	:init
+                                        ;	(setq evil-mode-line-format '(before . mode-line-front-space))
+	(setq doom-modeline-minor-modes nil)
+	(setq doom-modeline-mu4e t)
+	(setq doom-modeline-icon t)
+  :hook (after-init . doom-modeline-mode))
+
+(use-package avy
+  :defer t
+	:diminish t
+  :init
+  (spc-menu
+    "a" '(:ignore t :wk "Avy prefix")
+    "af" 'avy-goto-char
+    "aF" 'avy-goto-char-2
+    "aw" 'avy-goto-word-0
+    "aW" 'avy-goto-word-1))
+
+(use-package eyebrowse
+	:diminish t
+  :config
+  (eyebrowse-mode 1)
+  
+  (spc-menu
+    "t" '(:ignore t :wk "tab prefix")
+    "td" '(eyebrowse-close-window-config :wk "close tab")
+    "tl" '(eyebrowse-next-window-config :wk "next tab")
+    "th" '(eyebrowse-prev-window-config :wk "prev tab")
+    "tg" '(eyebrowse-switch-to-window-config :wk "select tab")
+    "1"  '(eyebrowse-switch-to-window-config-1 :wk "tab 1")
+    "2"  '(eyebrowse-switch-to-window-config-2 :wk "tab 2")
+    "3"  '(eyebrowse-switch-to-window-config-3 :wk "tab 3")
+    "4"  '(eyebrowse-switch-to-window-config-4 :wk "tab 4")
+    "5"  '(eyebrowse-switch-to-window-config-5 :wk "tab 5")))
+
+;;pkg:MISC
+                                        ;(use-package yasnippet
+                                        ;  ;;:defer 1
+                                        ;  :config (yas-global-mode))
+                                        ;
+                                        ;(use-package yasnippet-snippets
+                                        ;  :defer t
+                                        ;  :after (yasnippet))
+                                        ;
+                                        ;(use-package ivy-yasnippet
+                                        ;  :after (yasnippet)
+                                        ;  :init
+                                        ;  (spc-menu "y" 'ivy-yasnippet))
+
+                                        ;(load "~/.emacs.d/custom/flyspell.el")
+                                        ;(load "~/.emacs.d/custom/mu4e-conf.el")
+                                        ;(load "~/.emacs.d/custom/pdf-tools.el")
+                                        ;(load "~/.emacs.d/custom/auctex.el")
+                                        ;(load "~/.emacs.d/custom/matlab.el")
+
+(defvar org-edit-src-content-indentation 0) ;For better source blocsk
+(defvar org-src-tab-acts-natively t)
+(defvar org-src-preserve-indentation t)
+(defvar org-agenda-files '("~/Sync/org-files/"))
+(defvar org-agenda-default-appointment-duration 60)
+(defvar org-list-allow-alphabetical t)
+
+                                        ;(setq org-latex-pdf-process ;For .svg files
+                                        ;      '("pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+                                        ;    "bibtex %b"
+                                        ;    "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+                                        ;    "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
+
+(use-package org
+  :ensure nil)
+
+(use-package org-bullets
+  :defer t
+  :init
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+
+(use-package undo-tree
+	:diminish undo-tree-mode)
+
+;;----------------
+;;history settings
+;;----------------
+
+;;enable history
+(savehist-mode 1)
+
+;;enable history for additional items
+(defvar savehist-additional-variables '(mark-ring
+				                                global-mark-ring
+				                                register-alist
+				                                search-ring
+				                                regexp-search-ring
+				                                extended-command-history))
+
+;;put autosave files into tmp dir
+(setq backup-by-copying t
+      backup-directory-alist '(("." . "~/.emacs-saves/"))
+      delete-old-versions t
+      kept-new-versions 6
+      kept-old-versions 2
+      version-control t)
+(setq auto-save-file-name-transforms
+      `((".*" "~/.emacs-saves/" t)))
+
+;;--------
+;;graphics
+;;--------
+
+(defvar custom-font "Consolas")
+(defvar custom-font-size "14")
+
+(defun custom/load-font ()
+  "Apply custom font if found on the system."
+  (when (find-font (font-spec :name custom-font))
+    (set-frame-font (concat custom-font ":size=" custom-font-size))))
+
+(add-hook 'focus-in-hook #'custom/load-font) ;; Allows loading font in both daemon and standalone.
+
+;;load theme (srcy, almost-mono, plan9, parchment, naysayer, suscolors, kaolin, hemisu, chocolate, minimal, seti, poet, tao, autumn-light-theme, light-soap-theme.)
+;(load-theme 'kaolin-mono-dark t)
+;(load-theme 'modus-vivendi t)
+(load-theme 'modus-operandi t)
+;(load-theme 'hydandata-light t)
+;(use-package plan9-theme
+;	:config
+;	(load-theme `plan9 t))
+;(use-package almost-mono-themes
+;	:init
+;	(load-theme 'almost-mono-white t))
+;(use-package kaolin-s
+;  :init
+;  (load-theme 'kaolin-mono-dark t))
+;(use-package doom-themes
+;  :init
+;  (load-theme 'doom-peacock t))
+;(load-theme 'poet-dark-monochrome t)
+
+;; add line numbers
+(global-display-line-numbers-mode)
+(setq display-line-numbers-type 'relative)
+
+;; remove scroll and tool bar
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(menu-bar-mode -1)
+
+;; Good for seeing blank lines at EOF
+(setq-default indicate-empty-lines t)
+
+;; Highlight current line
+(global-hl-line-mode t)
+
+;; Show matching parentheses
+(show-paren-mode 1)
+
+;; Don't blink parentheses
+(setq blink-matching-paren nil)
+
+;;----
+;;MISC
+;;----
+
+;; set browser to nightly (firefox)
+(setq browse-url-browser-function "firefox")
+
+(setq ring-bell-function 'ignore)
+
+(setq-default indent-tabs-mode nil)
+(setq-default tab-width 2)
+(setq-default standard-indent tab-width)
+(setq-default c-basic-offset tab-width)
+
+(setq scroll-margin 4) ;scrolling (vim-like)
+                                        ;scroll-conservatively 10000
+                                        ;scroll-preserve-screen-position t
+                                        ;auto-window-vscroll nil)
+
+;;------
+;;CUSTOM
+;;------
+
+(setq custom-file "~/.emacs.d/custom.el")
+(load custom-file 'noerror)
+
+(provide 'init)
+;;; init.el ends here
